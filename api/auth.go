@@ -206,6 +206,12 @@ func (b *BilibiliApiClient) LoginByRefreshToken(accessToken string, refreshToken
 	return b.RefreshAccessToken()
 }
 
+// Login by several step
+// 1. Set the cookie.
+// 2. Login by access token
+// 3. If access token invalid, login by refresh token
+// 4. If refresh token invalid, login by username and password
+// 5. Check current cookies. If cookies are invalid, try get new cookies by access token.
 func (b *BilibiliApiClient) Login(username string, password string, accessToken string, refreshToken string, jsonCookie []byte) error {
 	var err error
 	b.Username = username
