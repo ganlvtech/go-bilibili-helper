@@ -58,16 +58,19 @@ func NewBilibiliApiClient(debug bool) *BilibiliApiClient {
 	return b
 }
 
-func (b *BilibiliApiClient) GetBiliJct() error {
+func (b *BilibiliApiClient) GetBiliJct() (string, error) {
+	if b.BiliJct != "" {
+		return b.BiliJct, nil
+	}
 	u, _ := url.Parse("https://api.live.bilibili.com")
 	cookies := b.Client.Jar.Cookies(u)
 	for _, cookie := range cookies {
 		if cookie.Name == "bili_jct" {
 			b.BiliJct = cookie.Value
-			return nil
+			return b.BiliJct, nil
 		}
 	}
-	return errors.New("cannot find bili_jct")
+	return "", errors.New("cannot find bili_jct in cookies")
 }
 
 func (b *BilibiliApiClient) SendLiveMessage(roomId int, content string) error {
@@ -78,8 +81,12 @@ func (b *BilibiliApiClient) SendLiveMessage(roomId int, content string) error {
 	v.Set("msg", content)
 	v.Set("rnd", Timestamp())
 	v.Set("roomid", strconv.Itoa(roomId))
-	v.Set("csrf_token", b.BiliJct)
-	v.Set("csrf", b.BiliJct)
+	biliJct, err := b.GetBiliJct()
+	if err != nil {
+		return err
+	}
+	v.Set("csrf_token", biliJct)
+	v.Set("csrf", biliJct)
 	resp, err := b.Client.PostForm("https://api.live.bilibili.com/msg/send", v)
 	if err != nil {
 		return err
@@ -90,14 +97,11 @@ func (b *BilibiliApiClient) SendLiveMessage(roomId int, content string) error {
 	}
 	code, err := j.Get("code").Int()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "cannot get result code")
 	}
 	if code != 0 {
-		message, err := j.Get("message").String()
-		if err != nil {
-			message = ""
-		}
-		return errors.New("send live message failed: " + message)
+		message, _ := j.Get("message").String()
+		return errors.Errorf("send live message failed: %s", message)
 	}
 	return nil
 }
@@ -113,26 +117,23 @@ func (b *BilibiliApiClient) GetDanmakuConfig(roomId int, content string) error {
 	}
 	code, err := j.Get("code").Int()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "cannot get result code")
 	}
 	if code != 0 {
-		message, err := j.Get("message").String()
-		if err != nil {
-			message = ""
-		}
-		return errors.New("send live message failed: " + message)
+		message, _ := j.Get("message").String()
+		return errors.Errorf("get danmaku config failed: %s", message)
 	}
 	b.DanmakuConfig.Length, err = j.Get("data").Get("length").Int()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "cannot get danmaku length")
 	}
 	b.DanmakuConfig.Color, err = j.Get("data").Get("color").Int()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "cannot get danmaku color")
 	}
 	b.DanmakuConfig.Mode, err = j.Get("data").Get("mode").Int()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "cannot get danmaku mode")
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -56,14 +57,17 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
-	err = ioutil.WriteFile("config.json", saveConfig, 0777)
+	err = ioutil.WriteFile(configFile, saveConfig, 0777)
 	if err != nil {
 		log.Println(err)
 	}
 	log.Println("登录成功")
 
 	// 房间号
-	roomId := api.GetRoomId(shortId)
+	roomId, err := api.GetRoomId(shortId)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	// 新建分发器
 	d := NewDispatcher(roomId)
@@ -74,7 +78,7 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	} else {
-		log.Println("Connect OK")
+		log.Println("连接弹幕服务器成功")
 	}
 
 	// 开始监听
@@ -92,7 +96,7 @@ func main() {
 			if err != nil {
 				log.Println(err)
 			} else {
-				log.Println("Send live message OK:", content)
+				log.Println("弹幕发送成功", content)
 			}
 			emptyCount = 0
 		} else {

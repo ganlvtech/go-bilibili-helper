@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/ganlvtech/go-bilibili-helper/api"
 )
@@ -15,7 +16,10 @@ type BilibiliWebSocket struct {
 }
 
 func New(shortId int) (*BilibiliWebSocket, error) {
-	roomId := api.GetRoomId(shortId)
+	roomId, err := api.GetRoomId(shortId)
+	if err != nil {
+		return nil, errors.WithMessage(err, "get room id failed")
+	}
 	return NewBilibiliWebSocket(roomId)
 }
 
@@ -27,7 +31,7 @@ func NewBilibiliWebSocket(roomId int) (*BilibiliWebSocket, error) {
 	var err error
 	b.ws, _, err = websocket.DefaultDialer.Dial("wss://broadcastlv.chat.bilibili.com:2245/sub", nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "connect websocket failed")
 	}
 
 	// receive Message
@@ -37,7 +41,7 @@ func NewBilibiliWebSocket(roomId int) (*BilibiliWebSocket, error) {
 	// Send Join Room Packet
 	err = b.sendJoinRoom(roomId)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "send join room packet failed")
 	}
 	<-done
 

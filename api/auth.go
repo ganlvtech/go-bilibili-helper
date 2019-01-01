@@ -26,7 +26,7 @@ func (b *BilibiliApiClient) SignPayload(payload map[string]string) url.Values {
 func (b *BilibiliApiClient) GetAccessToken() error {
 	passwordEncrypted, err := EncryptPassword(b.Password)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "encrypt password failed")
 	}
 	payload := make(map[string]string)
 	payload["seccode"] = ""
@@ -47,59 +47,51 @@ func (b *BilibiliApiClient) GetAccessToken() error {
 	}
 	code, err := j.Get("code").Int()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "cannot get result code")
 	}
 	if code != 0 {
-		message, err := j.Get("message").String()
-		if err != nil {
-			message = ""
-		}
-		return errors.New("get access token error: " + message)
+		message, _ := j.Get("message").String()
+		return errors.Errorf("get access token failed: %s", message)
 	}
 	b.AccessToken, err = j.Get("data").Get("token_info").Get("access_token").String()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "cannot get access token")
 	}
 	b.RefreshToken, err = j.Get("data").Get("token_info").Get("refresh_token").String()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "cannot get refresh token")
 	}
 	return nil
 }
 
 // Check if the access token is valid
 // 	b.AccessToken = "access token"
-// 	ok, message, err := b.CheckAccessToken()
+// 	err := b.CheckAccessToken()
 // 	if err != nil {
 // 		fmt.Println(err)
-// 	} else if !ok {
-// 		fmt.Println(message)
 // 	} else {
 // 		fmt.Println("Valid access token")
 // 	}
-func (b *BilibiliApiClient) CheckAccessToken() (bool, string, error) {
+func (b *BilibiliApiClient) CheckAccessToken() error {
 	payload := make(map[string]string)
 	payload["access_token"] = b.AccessToken
 	resp, err := b.Client.Get("https://passport.bilibili.com/api/v2/oauth2/info?" + b.SignPayload(payload).Encode())
 	if err != nil {
-		return false, "", err
+		return err
 	}
 	j, err := simplejson.NewFromReader(resp.Body)
 	if err != nil {
-		return false, "", err
+		return err
 	}
 	code, err := j.Get("code").Int()
 	if err != nil {
-		return false, "", err
+		return errors.WithMessage(err, "cannot get result code")
 	}
 	if code != 0 {
-		message, err := j.Get("message").String()
-		if err != nil {
-			message = ""
-		}
-		return false, message, nil
+		message, _ := j.Get("message").String()
+		return errors.Errorf("invalid access token: %s", message)
 	}
-	return true, "", nil
+	return nil
 }
 
 // Get new access token by refresh token
@@ -125,13 +117,10 @@ func (b *BilibiliApiClient) RefreshAccessToken() error {
 	}
 	code, err := j.Get("code").Int()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "cannot get result code")
 	}
 	if code != 0 {
-		message, err := j.Get("message").String()
-		if err != nil {
-			message = ""
-		}
+		message, _ := j.Get("message").String()
 		return errors.New("refresh access token failed: " + message)
 	}
 	return nil
@@ -161,17 +150,11 @@ func (b *BilibiliApiClient) CheckCookies() error {
 	}
 	code, err := j.Get("code").String()
 	if err != nil {
-		message, err := j.Get("message").String()
-		if err != nil {
-			return err
-		}
+		message, _ := j.Get("message").String()
 		return errors.New("check cookie failed: " + message)
 	}
 	if code != "REPONSE_OK" {
-		message, err := j.Get("message").String()
-		if err != nil {
-			message = ""
-		}
+		message, _ := j.Get("message").String()
 		return errors.New("cookie expired: " + message)
 	}
 	return nil
@@ -190,17 +173,24 @@ func (b *BilibiliApiClient) LoginByUsernamePassword(username string, password st
 }
 
 func (b *BilibiliApiClient) LoginByAccessToken(accessToken string) error {
+	if accessToken == "" {
+		return errors.New("empty access token")
+	}
 	b.AccessToken = accessToken
-	ok, message, err := b.CheckAccessToken()
+	err := b.CheckAccessToken()
 	if err != nil {
 		return err
-	} else if !ok {
-		return errors.New(message)
 	}
 	return nil
 }
 
 func (b *BilibiliApiClient) LoginByRefreshToken(accessToken string, refreshToken string) error {
+	if accessToken == "" {
+		return errors.New("empty access token")
+	}
+	if refreshToken == "" {
+		return errors.New("empty refresh token")
+	}
 	b.AccessToken = accessToken
 	b.RefreshToken = refreshToken
 	return b.RefreshAccessToken()
@@ -235,10 +225,6 @@ func (b *BilibiliApiClient) Login(username string, password string, accessToken 
 		if err != nil {
 			return err
 		}
-	}
-	err = b.GetBiliJct()
-	if err != nil {
-		return err
 	}
 	return nil
 }
