@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -42,7 +43,7 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
-	b := api.NewBilibiliApiClient(true)
+	b := api.NewBilibiliApiClient(false)
 	err = b.Login(config.Username, config.Password, config.AccessToken, config.RefreshToken, []byte(config.Cookie))
 	if err != nil {
 		log.Println(err)
@@ -73,6 +74,10 @@ func main() {
 	d := NewDispatcher(roomId)
 	d.Add(worker.Danmaku())                  // 显示弹幕
 	d.Add(worker.GiftAcknowledge(roomId, b)) // 感谢礼物
+	if runtime.GOOS == "windows" {
+		log.Println("Windows")
+		d.Add(worker.DanmakuToast()) // 显示弹幕 toast
+	}
 
 	err = d.Connect()
 	if err != nil {

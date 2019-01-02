@@ -28,6 +28,12 @@ go run main.go 8000
 
 Visit <http://127.0.0.1:8000/>
 
+## Use [Snoretoast](https://github.com/KDE/snoretoast)
+
+```bash
+wget https://github.com/mikaelbr/node-notifier/raw/master/vendor/snoreToast/SnoreToast.exe
+```
+
 ## LICENSE
 
 MIT License
